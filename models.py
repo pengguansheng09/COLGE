@@ -433,7 +433,7 @@ class GCN_QN_1(torch.nn.Module):
 
 
         self.mu_1 = torch.nn.Parameter(torch.Tensor(1, embed_dim))
-        torch.nn.init.normal_(self.mu_1, mean=0, std=0.01)
+        torch.nn.init.normal_(self.mu_1, mean=0, std=0.01) # 初始化参数
 
         self.mu_2 = torch.nn.Linear(embed_dim, embed_dim, True)
         torch.nn.init.normal_(self.mu_2.weight, mean=0, std=0.01)
@@ -455,7 +455,7 @@ class GCN_QN_1(torch.nn.Module):
         self.q_2 = torch.nn.Linear(embed_dim, embed_dim,bias=True)
         torch.nn.init.normal_(self.q_2.weight, mean=0, std=0.01)
         self.q = torch.nn.Linear(2 * embed_dim, 1,bias=True)
-        if self.reg_hidden > 0:
+        if self.reg_hidden > 0: # MLP的隐藏层单元数是否大于0
             self.q_reg = torch.nn.Linear(2 * embed_dim, self.reg_hidden)
             torch.nn.init.normal_(self.q_reg.weight, mean=0, std=0.01)
             self.q = torch.nn.Linear(self.reg_hidden, 1)
@@ -465,37 +465,37 @@ class GCN_QN_1(torch.nn.Module):
 
     def forward(self, xv, adj):
 
-        minibatch_size = xv.shape[0]
-        nbr_node = xv.shape[1]
+        minibatch_size = xv.shape[0]   # batch size
+        nbr_node = xv.shape[1]  # 图的大小，即节点数目
 
         diag = torch.ones(nbr_node)
-        I = torch.diag(diag).expand(minibatch_size,nbr_node,nbr_node)
-        adj_=adj+I
+        I = torch.diag(diag).expand(minibatch_size,nbr_node,nbr_node)  # 自连接矩阵：对角线均为1的矩阵，生成batch_size个
+        adj_=adj+I # 邻接矩阵加上自连接矩阵
 
-        D = torch.sum(adj,dim=1)
+        D = torch.sum(adj,dim=1)  # 度向量
         zero_selec = np.where(D.detach().numpy() == 0)
-        D[zero_selec[0], zero_selec[1]] = 0.01
+        D[zero_selec[0], zero_selec[1]] = 0.01 # 给度向量中为0的元素置为0.01
         d = []
         for vec in D:
-            #d.append(torch.diag(torch.rsqrt(vec)))
+            #d.append(torch.diag(torch.rsqrt(vec))) # 取平方根后取倒数
             d.append(torch.diag(vec))
-        d=torch.stack(d)
+        d=torch.stack(d) # 将度对角矩阵堆叠起来
 
         #res = torch.zeros(minibatch_size,nbr_node,nbr_node)
         #D_=res.as_strided(res.size(), [res.stride(0), res.size(2) + 1]).copy_(D)
 
         #gv=torch.matmul(torch.matmul(d,adj_),d)
-        gv=torch.matmul(torch.inverse(d),adj_)
+        gv=torch.matmul(torch.inverse(d),adj_)   # 对矩阵d求逆，然后乘以adj_ , GCN完成
 
         for t in range(self.T):
             if t == 0:
                 #mu = self.mu_1(xv).clamp(0)
-                mu = torch.matmul(xv, self.mu_1).clamp(0)
+                mu = torch.matmul(xv, self.mu_1).clamp(0)  # clamp 将所有小于0的元素置为0
                 #mu.transpose_(1,2)
                 #mu_2 = self.mu_2(torch.matmul(adj, mu_init))
                 #mu = torch.add(mu_1, mu_2).clamp(0)
 
-            else:
+            else: # 多层GCN，每一层的输入是上一层GCN的输出，即A * X * W，其中A为图结构矩阵， 这里即gv
                 #mu_1 = self.mu_1(xv)
                 mu_1 = torch.matmul(xv, self.mu_1).clamp(0)
                 #mu_1.transpose_(1,2)

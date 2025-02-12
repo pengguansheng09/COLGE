@@ -76,10 +76,10 @@ class DQAgent:
             args_init = load_model_config()[self.model_name]
             self.model = models.W2V_QN(G=self.graphs[self.games], **args_init)
 
-        self.criterion = torch.nn.MSELoss(reduction='sum')
+        self.criterion = torch.nn.MSELoss(reduction='sum')  # 损失函数为Q函数的均方误差之和， sum表示将所有元素（损失）相加
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
 
-        self.T = 5
+        self.T = 5  # T为GCN的层数
 
         self.t = 1
 
